@@ -1,3 +1,4 @@
-.*~
+*~
 consumer_oauth.json
-*\.pkl
+*.pkl
+*bank*
