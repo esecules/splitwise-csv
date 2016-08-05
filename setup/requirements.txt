@@ -1,0 +1,4 @@
+Flask==0.10.1
+money==1.3.0
+oauthlib==1.0.3
+requests==2.9.1

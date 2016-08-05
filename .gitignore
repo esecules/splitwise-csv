@@ -1,4 +1,5 @@
 *~
+*.pyc
 consumer_oauth.json
 *.pkl
 *bank*
