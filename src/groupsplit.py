@@ -40,7 +40,7 @@ def get_client():
 
     webbrowser.open_new(uri)
 
-    proc = subprocess.Popen(['./server.py'], stdout=subprocess.PIPE, shell=True)
+    proc = subprocess.Popen(['python', 'server.py'], stdout=subprocess.PIPE, shell=True)
     stdout, stderr = proc.communicate()
     if stderr:
         exit(stderr)
