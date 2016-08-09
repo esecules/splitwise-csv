@@ -14,4 +14,4 @@ class APIInterfaceTests(unittest.TestCase):
         ]
         for case in cases:
             expect = ( Money(e, "CAD") for e in case['expect'])
-            self.assertEqual(expect, split(Money(case['amount'], "CAD"), case['people']))
+            self.assertEqual(expect, split(Money(case['amount'], "CAD"), case['ppl']))
