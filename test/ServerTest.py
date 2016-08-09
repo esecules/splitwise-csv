@@ -24,5 +24,5 @@ class ServerTest(unittest.TestCase):
       self.fail("Server process is still alive, killing now...")
     stdout, _ = serverProc.communicate()
     stdout = stdout.strip()
-    self.assertEqual(0, status, "Server exited with nonzero status: %s" % status)
+    self.assertEqual(0, status, "Server exited with nonzero status: %s stdout: %s" % (status, stdout))
     self.assertEqual(test_data, stdout, "server didnt return fake oauth verifier, instead: '%s'" % stdout)
