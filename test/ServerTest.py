@@ -6,7 +6,7 @@ class ServerTest(unittest.TestCase):
   def test_request(self):
     serverProc = subprocess.Popen(['python', '../src/server.py'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     sleep(1)
-    assertEqual(None, serverProc.poll(), "Server exited unexpectedly")
+    self.assertEqual(None, serverProc.poll(), "Server exited unexpectedly")
     test_data = "1234567890asdf"
     resp = requests.get("http://localhost:5000?oauth_verifier=%s" % test_data)
     assert resp.status_code == 200
