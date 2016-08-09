@@ -23,5 +23,5 @@ class ServerTest(unittest.TestCase):
       self.fail("Server process is still alive, killing now...")
     stdout, stderr = serverProc.communicate()
     
-    assertFalse(stderr, "stderr is nonempty")
-    assertEqual(stdout, test_data, "server didnt return fake oauth verifier!")
+    self.assertFalse(stderr, "stderr is nonempty")
+    self.assertEqual(stdout, test_data, "server didnt return fake oauth verifier!")
