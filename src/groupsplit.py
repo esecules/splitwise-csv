@@ -134,7 +134,7 @@ def main():
         rows = rows[1:]
     transactions = [{"date": datetime.strftime(datetime.strptime(r[date_col], "%m/%d/%y"), "%Y-%m-%dT%H:%M:%SZ"),
                      "amount": -1 * Money(r[amount_col], local_currency),
-                     "desc": re.sub('\s+',' ', r[desc_col]})
+                     "desc": re.sub('\s+',' ', r[desc_col])}
                     for r in rows if float(r[amount_col]) < 0]
     splits = []
     for t in transactions:
