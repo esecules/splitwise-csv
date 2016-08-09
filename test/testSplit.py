@@ -4,7 +4,7 @@ from money import Money
 sys.path.append("../src")
 from groupsplit import split
 
-class APIInterfaceTests(unittest.TestCase):
+class UtilsTests(unittest.TestCase):
     def test_splits(self):
         cases = [
             {"amount": "1.00", "ppl": 2, "expect": ("0.50","0.00")},
