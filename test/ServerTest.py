@@ -12,16 +12,17 @@ class ServerTest(unittest.TestCase):
     assert resp.status_code == 200
     with self.assertRaises(requests.ConnectionError):
       resp = requests.get("http://localhost:5000?oauth_verifier=%s" % test_data)
-    
+
     polls = 0
     while serverProc.poll() is None and polls < 10:
       polls += 1
       sleep(1)
-    
-    if serverProc.poll() is None:  
+
+    status = serverProc.poll()  
+    if status is None:
       serverProc.kill()
       self.fail("Server process is still alive, killing now...")
-    stdout, stderr = serverProc.communicate()
-    
-    self.assertEqual(stderr, '', "stderr is nonempty: '%s'" % stderr)
-    self.assertEqual(stdout, test_data, "server didnt return fake oauth verifier!")
+    stdout, _ = serverProc.communicate()
+
+    self.assertEqual(0, status, "Server exited with nonzero status: %s" % status)
+    self.assertEqual(test_data, stdout, "server didnt return fake oauth verifier!")
