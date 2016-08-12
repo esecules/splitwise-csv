@@ -6,6 +6,7 @@ import json
 import pickle
 import pprint
 import urllib
+import hashlib
 import logging
 import optparse
 import requests
@@ -44,6 +45,11 @@ def split(total, num_people):
     assert base * num_people + extra == total, "InternalError:" + \
     " something doesnt add up here: %d * %d + %d != %d" %(base, num_people, extra, total)
     return base, extra
+
+def do_hash(msg):
+    m = hashlib.md5()
+    m.update(msg)
+    return m.hexdigest()
 
 class Splitwise:
     def __init__(self, api_client='oauth_client.pkl'):
@@ -145,6 +151,7 @@ class CsvSettings():
         self.amount_col = input("Which column has the amount?")
         self.desc_col = input("Which column has the description?")
         self.has_title_row = raw_input("Does first row have titles? [Y/n]").lower() != 'n'
+        self.newest_transaction = ''
         while True:
             try:
                 self.local_currency = raw_input("What currency were these transactions made in?").upper()
@@ -155,11 +162,19 @@ class CsvSettings():
             else:
                 break
         self.remember = raw_input("Remember these settings? [Y/n]").lower() != 'n'
-    
+
+    def __del__(self):
         if self.remember:
             with open("csv_settings.pkl", "wb") as pkl:
                 pickle.dump(self, pkl)
 
+    def record_newest_transaction(self, rows):
+        if self.has_title_row:
+            self.newest_transaction = do_hash(str(rows[1]))
+        else:
+            self.newest_transaction = do_hash(str(rows[0]))
+
+                
 class SplitGenerator():
     def __init__(self, options, args, api):
         csv_file = args[0]
@@ -176,20 +191,26 @@ class SplitGenerator():
                 self.csv = pickle.load(f)
         else:
             self.csv = CsvSettings(self.rows)
-    
+        
         if self.csv.has_title_row:
             self.rows = self.rows[1:]
             
         self.make_transactions()
+        self.csv.record_newest_transaction(self.rows)
         self.get_group(group_name)
         self.splits = []
         self.ask_for_splits()
         
     def make_transactions(self):
-        self.transactions = [{"date": datetime.strftime(datetime.strptime(r[self.csv.date_col], "%m/%d/%y"), "%Y-%m-%dT%H:%M:%SZ"),
-                              "amount": -1 * Money(r[self.csv.amount_col], self.csv.local_currency),
-                              "desc": re.sub('\s+',' ', r[self.csv.desc_col])}
-                             for r in self.rows if float(r[self.csv.amount_col]) < 0]
+        self.transactions = []
+        for r in self.rows:
+            if do_hash(str(r)) == self.csv.newest_transaction:
+                break
+            if float(r[self.csv.amount_col]) < 0:
+                self.transactions.append({"date": datetime.strftime(datetime.strptime(r[self.csv.date_col], "%m/%d/%y"), "%Y-%m-%dT%H:%M:%SZ"),
+                                          "amount": -1 * Money(r[self.csv.amount_col], self.csv.local_currency),
+                                          "desc": re.sub('\s+',' ', r[self.csv.desc_col])}
+                )
 
     def get_group(self, name):
         num_found = 0

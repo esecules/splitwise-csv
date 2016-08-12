@@ -1,5 +1,6 @@
 import unittest
 import sys
+import csv
 import subprocess
 from money import Money
 sys.path.append("../src")
@@ -29,17 +30,28 @@ class UtilsTests(unittest.TestCase):
         self.assertGreater(len(self.api.get_groups()), 0)
 
 class SystemTests(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        super(SystemTests, self).__init__(*args, **kwargs)
+        self.api = Splitwise()
+        with open('transactions.csv', 'rb') as csvfile:
+            reader = csv.reader(csvfile)
+            self.num_expenses = len([x for x in reader])
+
     def __del__(self):
-        api = Splitwise()
-        for expense in api.get_expenses():
+        for expense in self.api.get_expenses():
+            assert(expense['created_by']['id'] == 3993138)
             api.delete_expense(expense['id'])
 
+    def verify_num_expenses(self):
+        self.assertEqual(len(self.api.get_expenses()), self.num_expenses)
+        
     def test_group_of_2(self):
         proc = subprocess.Popen(['python', '../src/groupsplit.py', 'transactions.csv', 'group_of_2',
                                  '--csv-settings=csv_settings.pkl', '--api-client=oauth_client.pkl',
                                  '-y'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = proc.communicate()
         self.assertEqual(stderr, '')
+        self.verify_num_expenses()
 
     def test_group_of_3(self):
         proc = subprocess.Popen(['python', '../src/groupsplit.py', 'transactions.csv', 'group_of_3',
@@ -47,3 +59,4 @@ class SystemTests(unittest.TestCase):
                                  '-y'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = proc.communicate()
         self.assertEqual(stderr, '')
+        self.verify_num_expenses()
