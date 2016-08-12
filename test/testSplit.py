@@ -17,6 +17,8 @@ class UtilsTests(unittest.TestCase):
             {"amount": "12.97", "ppl": 5, "expect": ("2.59", "0.02")},
             {"amount": "52000.00", "ppl": 3, "expect": ("17333.33", "0.01")},
             {"amount": "1050.00", "ppl": 3, "expect": ("350.00", "0.00")},
+            {"amount": "0.02", "ppl": 3, "expect": ("0.00", "0.02")},
+            {"amount": "0.02", "ppl": 2, "expect": ("0.01", "0.00")},
         ]
         for case in cases:
             expect = (Money(case['expect'][0], "CAD"), Money(case['expect'][1], "CAD"))
