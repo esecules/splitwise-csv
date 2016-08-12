@@ -23,7 +23,7 @@ class UtilsTests(unittest.TestCase):
             self.assertEqual(expect, split(Money(case['amount'], "CAD"), case['ppl']))
 
     def test_get_id(self):
-        assertGreater(int(self.api.get_id()), 0)
+        self.assertGreater(int(self.api.get_id()), 0)
 
     def test_get_groups(self):
         self.assertGreater(len(self.api.get_groups()), 0)
