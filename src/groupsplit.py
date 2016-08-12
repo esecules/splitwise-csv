@@ -46,9 +46,9 @@ def split(total, num_people):
     return base, extra
 
 class Splitwise:
-    def __init__(self, options, args):
-        if os.path.isfile(options.api_client):
-            with open(options.api_client, 'rb') as oauth_pkl:
+    def __init__(self, api_client='oauth_client.pkl'):
+        if os.path.isfile(api_client):
+            with open(api_client, 'rb') as oauth_pkl:
                 self.client = pickle.load(oauth_pkl)
         else:
             self.get_client()
@@ -129,6 +129,13 @@ class Splitwise:
             sys.stdout.write(".")
             sys.stdout.flush()
 
+    def delete_expense(self, expense_id):
+        return self.api_call("https://secure.splitwise.com/api/v3.0/delete_expense/%s" % expense_id, 'POST')
+
+    def get_expenses(self, limit=0):
+        resp = self.api_call("https://secure.splitwise.com/api/v3.0/get_expenses?limit=%s" % limit, 'GET')
+        return resp['expenses']
+            
 class CsvSettings():
     def __init__(self, rows):
         print "These are the first two rows of your csv"
@@ -244,7 +251,7 @@ def main():
     parser.add_option('', '--api-client', default='oauth_client.pkl', dest='api_client', help='supply different splitwise api client (for testing mostly)')
     options, args = parser.parse_args()
     logger.setLevel(log_levels[options.verbosity])
-    splitwise = Splitwise(options, args)
+    splitwise = Splitwise(options.api_client)
     split_gen = SplitGenerator(options, args, splitwise)
     print "Uploading splits"
     for uri in split_gen:
