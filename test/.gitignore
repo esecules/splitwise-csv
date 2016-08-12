@@ -1,0 +1,4 @@
+*~
+*.pyc
+consumer_oauth.json
+oauth_client.pkl
