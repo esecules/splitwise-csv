@@ -3,10 +3,24 @@ import requests
 import subprocess
 from time import sleep
 class ServerTest(unittest.TestCase):
+  def check_server(self):
+    polls = 0
+    while True:
+      try:
+        resp = requests.get("http://localhost:5000/test")
+      except requests.ConnectionError as e:
+        resp = None
+        pass
+      if resp and resp.text == "Hello!":
+        break
+      if polls > 10:
+        self.fail("could not connect to server")
+      polls += 1
+      sleep(1)    
+
   def test_request(self):
     serverProc = subprocess.Popen(['python', '../src/server.py'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    sleep(1)
-    self.assertEqual(None, serverProc.poll())
+    self.check_server()
     test_data = "1234567890asdf"
     resp = requests.get("http://localhost:5000?oauth_verifier=%s" % test_data)
     assert resp.status_code == 200

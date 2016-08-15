@@ -8,12 +8,15 @@ def shutdown_server():
                 raise RuntimeError('Not running with the Werkzeug Server')
         func()
 
-@app.route('/', defaults={'path': ''})
-@app.route('/<path:path>')
-def authorize( path ):
+@app.route('/')
+def authorize():
         print request.args['oauth_verifier']
         shutdown_server()
         return "Thank you, you can close the tab"
+
+@app.route('/test')
+def test():
+        return "Hello!"
 
 if __name__ == "__main__":
     app.run()

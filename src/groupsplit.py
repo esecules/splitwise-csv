@@ -6,6 +6,7 @@ import json
 import pickle
 import pprint
 import urllib
+import hashlib
 import logging
 import optparse
 import requests
@@ -44,6 +45,11 @@ def split(total, num_people):
     assert base * num_people + extra == total, "InternalError:" + \
     " something doesnt add up here: %d * %d + %d != %d" %(base, num_people, extra, total)
     return base, extra
+
+def do_hash(msg):
+    m = hashlib.md5()
+    m.update(msg)
+    return m.hexdigest()
 
 class Splitwise:
     def __init__(self, api_client='oauth_client.pkl'):
@@ -132,8 +138,12 @@ class Splitwise:
     def delete_expense(self, expense_id):
         return self.api_call("https://secure.splitwise.com/api/v3.0/delete_expense/%s" % expense_id, 'POST')
 
-    def get_expenses(self, limit=0):
-        resp = self.api_call("https://secure.splitwise.com/api/v3.0/get_expenses?limit=%s" % limit, 'GET')
+    def get_expenses(self, after_date="", limit=0, allow_deleted=True):
+        params = {'limit': limit, "updated_after": after_date}
+        paramsStr = urllib.urlencode(params)
+        resp = self.api_call("https://secure.splitwise.com/api/v3.0/get_expenses?%s" % (paramsStr), 'GET')
+        if not allow_deleted:
+            resp['expenses'] = [exp for exp in resp['expenses'] if exp['deleted_at'] is None]
         return resp['expenses']
             
 class CsvSettings():
@@ -145,6 +155,7 @@ class CsvSettings():
         self.amount_col = input("Which column has the amount?")
         self.desc_col = input("Which column has the description?")
         self.has_title_row = raw_input("Does first row have titles? [Y/n]").lower() != 'n'
+        self.newest_transaction = ''
         while True:
             try:
                 self.local_currency = raw_input("What currency were these transactions made in?").upper()
@@ -155,11 +166,19 @@ class CsvSettings():
             else:
                 break
         self.remember = raw_input("Remember these settings? [Y/n]").lower() != 'n'
-    
+
+    def __del__(self):
         if self.remember:
             with open("csv_settings.pkl", "wb") as pkl:
                 pickle.dump(self, pkl)
 
+    def record_newest_transaction(self, rows):
+        if self.has_title_row:
+            self.newest_transaction = do_hash(str(rows[1]))
+        else:
+            self.newest_transaction = do_hash(str(rows[0]))
+
+                
 class SplitGenerator():
     def __init__(self, options, args, api):
         csv_file = args[0]
@@ -176,20 +195,26 @@ class SplitGenerator():
                 self.csv = pickle.load(f)
         else:
             self.csv = CsvSettings(self.rows)
-    
+        
         if self.csv.has_title_row:
             self.rows = self.rows[1:]
             
         self.make_transactions()
+        self.csv.record_newest_transaction(self.rows)
         self.get_group(group_name)
         self.splits = []
         self.ask_for_splits()
         
     def make_transactions(self):
-        self.transactions = [{"date": datetime.strftime(datetime.strptime(r[self.csv.date_col], "%m/%d/%y"), "%Y-%m-%dT%H:%M:%SZ"),
-                              "amount": -1 * Money(r[self.csv.amount_col], self.csv.local_currency),
-                              "desc": re.sub('\s+',' ', r[self.csv.desc_col])}
-                             for r in self.rows if float(r[self.csv.amount_col]) < 0]
+        self.transactions = []
+        for r in self.rows:
+            if not self.options.try_all and do_hash(str(r)) == self.csv.newest_transaction:
+                break
+            if float(r[self.csv.amount_col]) < 0:
+                self.transactions.append({"date": datetime.strftime(datetime.strptime(r[self.csv.date_col], "%m/%d/%y"), "%Y-%m-%dT%H:%M:%SZ"),
+                                          "amount": -1 * Money(r[self.csv.amount_col], self.csv.local_currency),
+                                          "desc": re.sub('\s+',' ', r[self.csv.desc_col])}
+                )
 
     def get_group(self, name):
         num_found = 0
@@ -249,6 +274,7 @@ def main():
     parser.add_option('-d', '--dryrun', default=False, action='store_true', dest='dryrun', help='prints requests instead of sending them')
     parser.add_option('', '--csv-settings', default='csv_settings.pkl', dest='csv_settings', help='supply different csv_settings object (for testing mostly)')
     parser.add_option('', '--api-client', default='oauth_client.pkl', dest='api_client', help='supply different splitwise api client (for testing mostly)')
+    parser.add_option('-a', '--all', default=False, action='store_true', dest='try_all', help='consider all transactions in csv file no matter whether they were already seen')
     options, args = parser.parse_args()
     logger.setLevel(log_levels[options.verbosity])
     splitwise = Splitwise(options.api_client)
