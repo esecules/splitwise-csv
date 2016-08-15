@@ -40,7 +40,7 @@ class SystemTests(unittest.TestCase):
             self.num_expenses = len([x for x in reader if float(x[1]) < 0])
 
     def tearDown(self):
-        for expense in self.api.get_expenses(allow_deleted=False, after_date=self.start_date):
+        for expense in self.api.get_expenses(allow_deleted=False):
             assert(expense['created_by']['last_name'] == 'Sample')
             self.api.delete_expense(expense['id'])
 
@@ -72,5 +72,5 @@ class SystemTests(unittest.TestCase):
                                  '-y'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = proc.communicate()
         self.assertEqual(stderr, '')
-        self.verify_num_expenses(num=5)
+        self.verify_num_expenses()
         
