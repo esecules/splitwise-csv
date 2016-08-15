@@ -138,8 +138,12 @@ class Splitwise:
     def delete_expense(self, expense_id):
         return self.api_call("https://secure.splitwise.com/api/v3.0/delete_expense/%s" % expense_id, 'POST')
 
-    def get_expenses(self, limit=0):
-        resp = self.api_call("https://secure.splitwise.com/api/v3.0/get_expenses?limit=%s" % limit, 'GET')
+    def get_expenses(self, after_date="", limit=0, allow_deleted=True):
+        params = {'limit': limit, "updated_after": after_date}
+        paramsStr = urllib.urlencode(params)
+        resp = self.api_call("https://secure.splitwise.com/api/v3.0/get_expenses?%s" % (paramsStr), 'GET')
+        if not allow_deleted:
+            resp['expenses'] = [exp for exp in resp['expenses'] if exp['deleted_at'] is None]
         return resp['expenses']
             
 class CsvSettings():
@@ -204,7 +208,7 @@ class SplitGenerator():
     def make_transactions(self):
         self.transactions = []
         for r in self.rows:
-            if do_hash(str(r)) == self.csv.newest_transaction:
+            if not self.options.try_all and do_hash(str(r)) == self.csv.newest_transaction:
                 break
             if float(r[self.csv.amount_col]) < 0:
                 self.transactions.append({"date": datetime.strftime(datetime.strptime(r[self.csv.date_col], "%m/%d/%y"), "%Y-%m-%dT%H:%M:%SZ"),
@@ -270,6 +274,7 @@ def main():
     parser.add_option('-d', '--dryrun', default=False, action='store_true', dest='dryrun', help='prints requests instead of sending them')
     parser.add_option('', '--csv-settings', default='csv_settings.pkl', dest='csv_settings', help='supply different csv_settings object (for testing mostly)')
     parser.add_option('', '--api-client', default='oauth_client.pkl', dest='api_client', help='supply different splitwise api client (for testing mostly)')
+    parser.add_option('-a', '--all', default=False, action='store_true', dest='try_all', help='consider all transactions in csv file no matter whether they were already seen')
     options, args = parser.parse_args()
     logger.setLevel(log_levels[options.verbosity])
     splitwise = Splitwise(options.api_client)

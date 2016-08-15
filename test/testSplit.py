@@ -2,6 +2,7 @@ import unittest
 import sys
 import csv
 import subprocess
+from datetime import datetime
 from money import Money
 sys.path.append("../src")
 from groupsplit import split, Splitwise
@@ -33,22 +34,25 @@ class SystemTests(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(SystemTests, self).__init__(*args, **kwargs)
         self.api = Splitwise()
+        self.start_date = datetime.strftime(datetime.utcnow(), "%Y-%m-%dT%H:%M:%SZ")
         with open('transactions.csv', 'rb') as csvfile:
             reader = csv.reader(csvfile)
-            self.num_expenses = len([x for x in reader])
+            self.num_expenses = len([x for x in reader if float(x[1]) < 0])
 
-    def __del__(self):
-        for expense in self.api.get_expenses():
-            assert(expense['created_by']['id'] == 3993138)
-            api.delete_expense(expense['id'])
+    def tearDown(self):
+        for expense in self.api.get_expenses(allow_deleted=False, after_date=self.start_date):
+            assert(expense['created_by']['last_name'] == 'Sample')
+            self.api.delete_expense(expense['id'])
 
-    def verify_num_expenses(self):
-        self.assertEqual(len(self.api.get_expenses()), self.num_expenses)
+    def verify_num_expenses(self, num=None):
+        if num is None:
+            num = self.num_expenses
+        self.assertEqual(len(self.api.get_expenses(allow_deleted=False,after_date=self.start_date)), num)
         
     def test_group_of_2(self):
         proc = subprocess.Popen(['python', '../src/groupsplit.py', 'transactions.csv', 'group_of_2',
                                  '--csv-settings=csv_settings.pkl', '--api-client=oauth_client.pkl',
-                                 '-y'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                                 '-ya'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = proc.communicate()
         self.assertEqual(stderr, '')
         self.verify_num_expenses()
@@ -56,7 +60,17 @@ class SystemTests(unittest.TestCase):
     def test_group_of_3(self):
         proc = subprocess.Popen(['python', '../src/groupsplit.py', 'transactions.csv', 'group_of_3',
                                  '--csv-settings=csv_settings.pkl', '--api-client=oauth_client.pkl',
-                                 '-y'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                                 '-ya'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = proc.communicate()
         self.assertEqual(stderr, '')
         self.verify_num_expenses()
+
+    def test_no_double_upload(self):
+        self.test_group_of_3()
+        proc = subprocess.Popen(['python', '../src/groupsplit.py', 'transactions.csv', 'group_of_3',
+                                 '--csv-settings=csv_settings.pkl', '--api-client=oauth_client.pkl',
+                                 '-y'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = proc.communicate()
+        self.assertEqual(stderr, '')
+        self.verify_num_expenses(num=5)
+        
