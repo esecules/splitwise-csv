@@ -268,7 +268,8 @@ class SplitGenerator():
         
         
 def main():
-    parser = optparse.OptionParser()
+    usage = "groupsplit.py [options] <path to csv file> <splitwise group name>"
+    parser = optparse.OptionParser(usage=usage)
     parser.add_option('-v', '--verbosity', default=2, dest='verbosity', help='change the logging level (0 - 6) default: 2')
     parser.add_option('-y','',default=False, action='store_true', dest='yes', help='split all transactions in csv without confirmation')
     parser.add_option('-d', '--dryrun', default=False, action='store_true', dest='dryrun', help='prints requests instead of sending them')
