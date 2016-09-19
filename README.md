@@ -1,4 +1,4 @@
-# splitwise-csv
+# splitwise-csv [![Build Status](https://travis-ci.org/esecules/splitwise-csv.svg?branch=master)](https://travis-ci.org/esecules/splitwise-csv)
 Upload expenses to splitwise from a csv file.
 
 ##API Keys
