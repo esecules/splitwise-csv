@@ -46,10 +46,12 @@ class SystemTests(unittest.TestCase):
             assert(expense['created_by']['last_name'] == 'Sample')
             self.api.delete_expense(expense['id'])
 
-    def verify_num_expenses(self, num=None):
-        if num is None:
-            num = self.num_expenses
-        self.assertEqual(len(self.api.get_expenses(allow_deleted=False,after_date=self.start_date)), num)
+    def verify_num_expenses(self, expect=None):
+        if expect is None:
+            expect = self.num_expenses
+
+        splExpenses = self.api.get_expenses(allow_deleted=False,after_date=self.start_date)
+        self.assertEqual(len(splExpenses), expect, "numExpenses:{0} expected:{1} expenses{2}".format(len(splExpenses), expect, splExpenses))
         
     def test_group_of_2(self):
         proc = subprocess.Popen(['python', '../src/groupsplit.py', 'transactions.csv', 'group_of_2',
