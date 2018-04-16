@@ -251,7 +251,7 @@ class SplitGenerator():
         print tabulate( self.splits, headers={"date":"Date", "amount":"Amount", "desc":"Description"} )
 
         # Kill program if user doesn't want to submit splits
-        assert raw_input( "Confirm submission? [y/N]" ).lower() == 'y', "User canceled submission"
+        assert self.options.yes or raw_input( "Confirm submission? [y/N]" ).lower() == 'y', "User canceled submission"
 
     def __getitem__(self, index):
         s = self.splits[index]
