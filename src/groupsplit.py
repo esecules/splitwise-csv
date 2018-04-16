@@ -41,6 +41,14 @@ logger.addHandler(ch)
 logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
 def split(total, num_people):
+    """
+    Splits a total to the nearest whole cent and remainder
+    Total is a Money() type so no need to worry about floating point errors
+    return (2-tuple): base amount owed, remainder of cents which couldn't be evenly split
+
+    Example: >>> split(1.00, 6) 
+    (0.16, 0.04)
+    """
     base = total * 100 // num_people / 100
     extra = total - num_people * base
     assert base * num_people + extra == total, "InternalError:" + \
@@ -53,6 +61,9 @@ def do_hash(msg):
     return m.hexdigest()
 
 class Splitwise:
+    """
+    Client for communicating with Splitwise api
+    """
     def __init__(self, api_client='oauth_client.pkl'):
         if os.path.isfile(api_client):
             with open(api_client, 'rb') as oauth_pkl:
@@ -207,17 +218,31 @@ class SplitGenerator():
         self.ask_for_splits()
 
     def make_transactions(self):
+        """
+        Consume the row data from the csv file into a format which is easy to upload to splitwise
+        Filter out all deposits (positive amounts)
+        **change csvDateFormat to the format in your csv if necessary** 
+        Further reading on date formats: https://docs.python.org/2/library/datetime.html#strftime-and-strptime-behavior
+        """
+        csvDateFormat="%m/%d/%y" 
         self.transactions = []
         for r in self.rows:
             if not self.options.try_all and do_hash(str(r)) == self.csv.newest_transaction:
                 break
             if float(r[self.csv.amount_col]) < 0:
-                self.transactions.append({"date": datetime.strftime(datetime.strptime(r[self.csv.date_col], "%m/%d/%y"), "%Y-%m-%dT%H:%M:%SZ"),
+                self.transactions.append({"date": datetime.strftime(datetime.strptime(r[self.csv.date_col], csvDateFormat), "%Y-%m-%dT%H:%M:%SZ"),
                                           "amount": -1 * Money(r[self.csv.amount_col], self.csv.local_currency),
                                           "desc": re.sub('\s+',' ', r[self.csv.desc_col])}
                 )
 
     def get_group(self, name):
+        """
+        Wrapper around splitwise api for retreiving groups
+        by name. Handles error cases: multiple groups with same name, 
+        no group found, group has no members.
+        
+        name: the name of your Splitwise group (case insensitive)
+        """
         num_found = 0
         gid = ''
         members = {}
@@ -229,16 +254,21 @@ class SplitGenerator():
                 num_found += 1
 
         if num_found > 1:
-            exit("More than 1 group found")
+            exit("More than 1 group found with name:" + name)
         elif num_found < 1:
-            exit("No matching group")
+            exit("No matching group with name:" + name)
         elif len(members) < 1:
-            exit("No members in group")
+            exit("No members in group with name:" + name)
 
         self.members = members
         self.gid = gid
 
     def ask_for_splits(self):
+        """
+        Ask the user whether they would like to split a given expense and if so
+        add it to tee list of transactions to upload to Splitwise. Gets final
+        confirmation before returning.
+        """
         print "Found {0} transactions".format(len(self.transactions))
         i = 0
         for t in self.transactions:
@@ -254,6 +284,11 @@ class SplitGenerator():
         assert self.options.yes or raw_input( "Confirm submission? [y/N]" ).lower() == 'y', "User canceled submission"
 
     def __getitem__(self, index):
+        """
+        Implement an iterator for SplitGenerator
+        for every split in self.splits, emit the URI needed
+        to upload that split to Splitwise
+        """
         s = self.splits[index]
         one_cent = Money("0.01", self.csv.local_currency)
         num_people = len(self.members) + 1
