@@ -16,6 +16,7 @@ import oauthlib.oauth1
 from money import Money
 from pprint import pprint
 from datetime import datetime
+from tabulate import tabulate
 
 LOGGING_DISABELED = 100
 log_levels = [LOGGING_DISABELED, logging.CRITICAL, logging.ERROR,
@@ -58,7 +59,7 @@ class Splitwise:
                 self.client = pickle.load(oauth_pkl)
         else:
             self.get_client()
-        
+
     def get_client_auth(self):
         if os.path.isfile("consumer_oauth.json"):
             with open("consumer_oauth.json", 'rb') as oauth_file:
@@ -73,7 +74,7 @@ class Splitwise:
                  "place them in consumer_oauth.json")
         self.ckey = ckey
         self.csecret = csecret
-        
+
     def get_client(self):
         self.get_client_auth()
         client = oauthlib.oauth1.Client(self.ckey, client_secret=self.csecret)
@@ -84,9 +85,9 @@ class Splitwise:
         oauth_token = resp[0].split('=')[1]
         oauth_secret = resp[1].split('=')[1]
         uri = "https://secure.splitwise.com/authorize?oauth_token=%s" % oauth_token
-    
+
         webbrowser.open_new(uri)
-    
+
         proc = subprocess.Popen(['python', 'server.py'], stdout=subprocess.PIPE)
         stdout, stderr = proc.communicate()
         if stderr:
@@ -95,7 +96,7 @@ class Splitwise:
                                         resource_owner_key=oauth_token,
                                         resource_owner_secret=oauth_secret,
                                         verifier=stdout.strip())
-    
+
         uri, headers, body = client.sign("https://secure.splitwise.com/api/v3.0/get_access_token",
                                          http_method='POST')
         resp = requests.post(uri, headers=headers, data=body)
@@ -109,7 +110,7 @@ class Splitwise:
         with open('oauth_client.pkl', 'wb') as pkl:
             pickle.dump(client, pkl)
         self.client = client
-    
+
     def api_call(self, url, http_method):
         uri, headers, body = self.client.sign(url, http_method=http_method)
         resp = requests.request(http_method, uri, headers=headers, data=body)
@@ -145,7 +146,7 @@ class Splitwise:
         if not allow_deleted:
             resp['expenses'] = [exp for exp in resp['expenses'] if exp['deleted_at'] is None]
         return resp['expenses']
-            
+
 class CsvSettings():
     def __init__(self, rows):
         print "These are the first two rows of your csv"
@@ -178,7 +179,7 @@ class CsvSettings():
         else:
             self.newest_transaction = do_hash(str(rows[0]))
 
-                
+
 class SplitGenerator():
     def __init__(self, options, args, api):
         csv_file = args[0]
@@ -195,16 +196,16 @@ class SplitGenerator():
                 self.csv = pickle.load(f)
         else:
             self.csv = CsvSettings(self.rows)
-        
+
         if self.csv.has_title_row:
             self.rows = self.rows[1:]
-            
+
         self.make_transactions()
         self.csv.record_newest_transaction(self.rows)
         self.get_group(group_name)
         self.splits = []
         self.ask_for_splits()
-        
+
     def make_transactions(self):
         self.transactions = []
         for r in self.rows:
@@ -226,7 +227,7 @@ class SplitGenerator():
                 gid = group['id']
                 members = [m['id'] for m in group['members'] if m['id'] != self.api.get_id()]
                 num_found += 1
-    
+
         if num_found > 1:
             exit("More than 1 group found")
         elif num_found < 1:
@@ -236,11 +237,21 @@ class SplitGenerator():
 
         self.members = members
         self.gid = gid
-        
+
     def ask_for_splits(self):
+        print "Found {0} transactions".format(len(self.transactions))
+        i = 0
         for t in self.transactions:
-            if self.options.yes or raw_input("%s at %s $%s. Split? [y/N]" % (t['date'], t['desc'], t['amount'])).lower() == 'y':
+            if self.options.yes or raw_input("%d: %s at %s $%s. Split? [y/N]" % (i, t['date'], t['desc'], t['amount'])).lower() == 'y':
                 self.splits.append(t)
+
+        print "-" * 40
+        print "Your Chosen Splits"
+        print "-" * 40
+        print tabulate( self.splits, headers={"date":"Date", "amount":"Amount", "desc":"Description"} )
+
+        # Kill program if user doesn't want to submit splits
+        assert raw_input( "Confirm submission? [y/N]" ).lower() == 'y', "User canceled submission"
 
     def __getitem__(self, index):
         s = self.splits[index]
@@ -265,8 +276,8 @@ class SplitGenerator():
             extra -= one_cent
         paramsStr = urllib.urlencode(params)
         return "https://secure.splitwise.com/api/v3.0/create_expense?%s" % (paramsStr)
-        
-        
+
+
 def main():
     usage = "groupsplit.py [options] <path to csv file> <splitwise group name>"
     parser = optparse.OptionParser(usage=usage)
