@@ -107,7 +107,7 @@ class Splitwise:
         # if stderr:
         #     exit(stderr)
 
-        verifier_input = input('Copy the oauth verifier from the success page: ')
+        verifier_input = input('Copy the oauth verifier from the success page in the browser window: ')
 
         client = oauthlib.oauth1.Client(self.ckey, client_secret=self.csecret,
                                         resource_owner_key=oauth_token,
