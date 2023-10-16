@@ -367,7 +367,7 @@ def dump_cats():
         if 'subcategories' in item:
             for subcategory in item['subcategories']:
                 result.append({'id': subcategory['id'], 'name': subcategory['name']})
-    file_name = 'all_categories_list.csv'
+    file_name = '../test/all_categories_list.csv'
     with open(file_name, 'w', newline='') as csv_file:
         fieldnames = ['id', 'name']
         writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
@@ -375,5 +375,4 @@ def dump_cats():
         writer.writerows(result)
 
 if __name__ == "__main__":
-    #main()
-    dump_cats()
+    main()
