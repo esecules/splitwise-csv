@@ -285,7 +285,7 @@ class SplitGenerator():
         print("-" * 40)
         print("Your Chosen Splits")
         print("-" * 40)
-        print(tabulate( self.splits, headers={"date":"Date", "amount":"Amount", "desc":"Description", "cat":"Category"} ))
+        print(tabulate( self.splits, headers={"date":"Date", "amount":"Amount", "desc":"Description"} ))
 
         # Kill program if user doesn't want to submit splits
         assert self.options.yes or input( "Confirm submission? [y/N]" ).lower() == 'y', "User canceled submission"
