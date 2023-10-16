@@ -100,14 +100,11 @@ class Splitwise:
         webbrowser.open_new(uri)
 
         # proc = subprocess.Popen(['python', 'server.py'], stdout=subprocess.PIPE)
-        # print(proc)
         # stdout, stderr = proc.communicate()
-        # print(stdout)
-        # print(stderr)
         # if stderr:
         #     exit(stderr)
 
-        verifier_input = input('Copy the oauth verifier from the success page in the browser window: ')
+        verifier_input = input('Copy the oauth verifier from the success page in the browser window : ')
 
         client = oauthlib.oauth1.Client(self.ckey, client_secret=self.csecret,
                                         resource_owner_key=oauth_token,
@@ -145,10 +142,6 @@ class Splitwise:
         resp = self.api_call("https://secure.splitwise.com/api/v3.0/get_groups", 'GET')
         return resp['groups']
 
-    def get_categories(self):
-        resp = self.api_call("https://secure.splitwise.com/api/v3.0/get_categories", 'GET')
-        return resp['categories']
-
     def post_expense(self, uri):
         resp = self.api_call(uri, 'POST')
         if resp["errors"]:
@@ -178,7 +171,6 @@ class CsvSettings():
         self.date_col = input("Which column has the date?")
         self.amount_col = input("Which column has the amount?")
         self.desc_col = input("Which column has the description?")
-        self.cat_col = input("Which column has the category?")
         self.has_title_row = input("Does first row have titles? [Y/n]").lower() != 'n'
         self.newest_transaction = ''
         while True:
@@ -240,16 +232,13 @@ class SplitGenerator():
         csvDateFormat="%m/%d/%Y"
         self.transactions = []
         for r in self.rows:
-            #if not self.options.try_all and do_hash(str(r)) == self.csv.newest_transaction:
+            # if not self.options.try_all and do_hash(str(r)) == self.csv.newest_transaction:
             #    break
             if float(r[int(self.csv.amount_col)]) > 0:
                 self.transactions.append({
-                    #"date": r[int(self.csv.date_col)],
                     "date": datetime.strptime(r[int(self.csv.date_col)], csvDateFormat).strftime("%Y-%m-%dT%H:%M:%SZ"),
                     "amount": Money(r[int(self.csv.amount_col)], self.csv.local_currency),
-                    #"amount":  Money(r[int(self.csv.amount_col)], self.csv.local_currency),
-                    "desc": re.sub(r'\s+', ' ', r[int(self.csv.desc_col)]),
-                    "cat": r[int(self.csv.cat_col)]
+                    "desc": re.sub(r'\s+', ' ', r[int(self.csv.desc_col)])
                 }
                 )
 
@@ -290,7 +279,7 @@ class SplitGenerator():
         print("Found {0} transactions".format(len(self.transactions)))
         i = 0
         for t in self.transactions:
-            if self.options.yes or input("%d: %s at %s $%s (%s). Split? [y/N]" % (i, t['date'], t['desc'], t['amount'], t['cat'])).lower() == 'y':
+            if self.options.yes or input("%d: %s at %s $%s. Split? [y/N]" % (i, t['date'], t['desc'], t['amount'])).lower() == 'y':
                 self.splits.append(t)
 
         print("-" * 40)
@@ -316,7 +305,6 @@ class SplitGenerator():
             "cost": s["amount"].amount,
             "description": s["desc"],
             "date": s["date"],
-            "category_id": s["cat"],
             "group_id": self.gid,
             "currency_code": self.csv.local_currency,
             "users__0__user_id": self.api.get_id(),
@@ -354,25 +342,6 @@ def main():
     sys.stdout.write("\n")
     sys.stdout.flush()
 
-def dump_cats():
-    """
-    Get list of category IDs and names for reference
-    """
-    splitwise = Splitwise()
-    cats = splitwise.get_categories()
-    # Extract ID and Name from the list of dictionaries
-    result = []
-    for item in cats:
-        result.append({'id': item['id'], 'name': item['name']})
-        if 'subcategories' in item:
-            for subcategory in item['subcategories']:
-                result.append({'id': subcategory['id'], 'name': subcategory['name']})
-    file_name = '../test/all_categories_list.csv'
-    with open(file_name, 'w', newline='') as csv_file:
-        fieldnames = ['id', 'name']
-        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(result)
 
 if __name__ == "__main__":
     main()
