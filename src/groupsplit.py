@@ -57,7 +57,7 @@ def split(total, num_people):
 
 def do_hash(msg):
     m = hashlib.md5()
-    m.update(msg)
+    m.update(msg.encode('utf-8'))
     return m.hexdigest()
 
 class Splitwise:
@@ -99,14 +99,18 @@ class Splitwise:
 
         webbrowser.open_new(uri)
 
-        proc = subprocess.Popen(['python', 'server.py'], stdout=subprocess.PIPE)
-        stdout, stderr = proc.communicate()
-        if stderr:
-            exit(stderr)
+        # proc = subprocess.Popen(['python', 'server.py'], stdout=subprocess.PIPE)
+        # stdout, stderr = proc.communicate()
+        # if stderr:
+        #     exit(stderr)
+
+        verifier_input = input('Copy the oauth verifier from the success page in the browser window : ')
+
         client = oauthlib.oauth1.Client(self.ckey, client_secret=self.csecret,
                                         resource_owner_key=oauth_token,
                                         resource_owner_secret=oauth_secret,
-                                        verifier=stdout.strip())
+                                        verifier=verifier_input)
+                                        #verifier=stdout.strip()) #bYpMPennhuz6bqMRZXd8
 
         uri, headers, body = client.sign("https://secure.splitwise.com/api/v3.0/get_access_token",
                                          http_method='POST')
@@ -117,7 +121,8 @@ class Splitwise:
         client = oauthlib.oauth1.Client(self.ckey, client_secret=self.csecret,
                                         resource_owner_key=oauth_token,
                                         resource_owner_secret=oauth_secret,
-                                        verifier=stdout.strip())
+                                        verifier=verifier_input)
+                                        #verifier=stdout.strip())
         with open('oauth_client.pkl', 'wb') as pkl:
             pickle.dump(client, pkl)
         self.client = client
@@ -160,24 +165,24 @@ class Splitwise:
 
 class CsvSettings():
     def __init__(self, rows):
-        print "These are the first two rows of your csv"
-        print '\n'.join([str(t) for t in rows[0:2]])
-        print 'Colnum numbers start at 0'
+        print("These are the first two rows of your csv")
+        print("\n".join([str(t) for t in rows[0:2]]))
+        print("Colnum numbers start at 0")
         self.date_col = input("Which column has the date?")
         self.amount_col = input("Which column has the amount?")
         self.desc_col = input("Which column has the description?")
-        self.has_title_row = raw_input("Does first row have titles? [Y/n]").lower() != 'n'
+        self.has_title_row = input("Does first row have titles? [Y/n]").lower() != 'n'
         self.newest_transaction = ''
         while True:
             try:
-                self.local_currency = raw_input("What currency were these transactions made in?").upper()
+                self.local_currency = input("What currency were these transactions made in?").upper()
                 test = Money("1.00", self.local_currency)  #pylint: disable=W0612
             except ValueError as err:
-                print err
-                print "Try again..."
+                print(err)
+                print("Try again...")
             else:
                 break
-        self.remember = raw_input("Remember these settings? [Y/n]").lower() != 'n'
+        self.remember = input("Remember these settings? [Y/n]").lower() != 'n'
 
     def __del__(self):
         if self.remember:
@@ -198,7 +203,7 @@ class SplitGenerator():
         self.api = api
         self.options = options
         self.args = args
-        with open(csv_file, 'rb') as csvfile:
+        with open(csv_file, 'r') as csvfile:
             reader = csv.reader(csvfile)
             self.rows = [x for x in reader]
 
@@ -224,15 +229,17 @@ class SplitGenerator():
         **change csvDateFormat to the format in your csv if necessary** 
         Further reading on date formats: https://docs.python.org/2/library/datetime.html#strftime-and-strptime-behavior
         """
-        csvDateFormat="%m/%d/%y" 
+        csvDateFormat="%m/%d/%Y"
         self.transactions = []
         for r in self.rows:
-            if not self.options.try_all and do_hash(str(r)) == self.csv.newest_transaction:
-                break
-            if float(r[self.csv.amount_col]) < 0:
-                self.transactions.append({"date": datetime.strftime(datetime.strptime(r[self.csv.date_col], csvDateFormat), "%Y-%m-%dT%H:%M:%SZ"),
-                                          "amount": -1 * Money(r[self.csv.amount_col], self.csv.local_currency),
-                                          "desc": re.sub('\s+',' ', r[self.csv.desc_col])}
+            # if not self.options.try_all and do_hash(str(r)) == self.csv.newest_transaction:
+            #    break
+            if float(r[int(self.csv.amount_col)]) > 0:
+                self.transactions.append({
+                    "date": datetime.strptime(r[int(self.csv.date_col)], csvDateFormat).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "amount": Money(r[int(self.csv.amount_col)], self.csv.local_currency),
+                    "desc": re.sub(r'\s+', ' ', r[int(self.csv.desc_col)])
+                }
                 )
 
     def get_group(self, name):
@@ -269,19 +276,19 @@ class SplitGenerator():
         add it to tee list of transactions to upload to Splitwise. Gets final
         confirmation before returning.
         """
-        print "Found {0} transactions".format(len(self.transactions))
+        print("Found {0} transactions".format(len(self.transactions)))
         i = 0
         for t in self.transactions:
-            if self.options.yes or raw_input("%d: %s at %s $%s. Split? [y/N]" % (i, t['date'], t['desc'], t['amount'])).lower() == 'y':
+            if self.options.yes or input("%d: %s at %s $%s. Split? [y/N]" % (i, t['date'], t['desc'], t['amount'])).lower() == 'y':
                 self.splits.append(t)
 
-        print "-" * 40
-        print "Your Chosen Splits"
-        print "-" * 40
-        print tabulate( self.splits, headers={"date":"Date", "amount":"Amount", "desc":"Description"} )
+        print("-" * 40)
+        print("Your Chosen Splits")
+        print("-" * 40)
+        print(tabulate( self.splits, headers={"date":"Date", "amount":"Amount", "desc":"Description"} ))
 
         # Kill program if user doesn't want to submit splits
-        assert self.options.yes or raw_input( "Confirm submission? [y/N]" ).lower() == 'y', "User canceled submission"
+        assert self.options.yes or input( "Confirm submission? [y/N]" ).lower() == 'y', "User canceled submission"
 
     def __getitem__(self, index):
         """
@@ -309,7 +316,7 @@ class SplitGenerator():
             params['users__%s__paid_share' % (i+1)] = 0
             params['users__%s__owed_share' % (i+1)] = (base + one_cent).amount if extra.amount > 0 else base.amount
             extra -= one_cent
-        paramsStr = urllib.urlencode(params)
+        paramsStr = urllib.parse.urlencode(params)
         return "https://secure.splitwise.com/api/v3.0/create_expense?%s" % (paramsStr)
 
 
@@ -326,14 +333,15 @@ def main():
     logger.setLevel(log_levels[options.verbosity])
     splitwise = Splitwise(options.api_client)
     split_gen = SplitGenerator(options, args, splitwise)
-    print "Uploading splits"
+    print("Uploading splits")
     for uri in split_gen:
         if options.dryrun:
-            print uri
+            print(uri)
             continue
         splitwise.post_expense(uri)
     sys.stdout.write("\n")
     sys.stdout.flush()
+
 
 if __name__ == "__main__":
     main()
